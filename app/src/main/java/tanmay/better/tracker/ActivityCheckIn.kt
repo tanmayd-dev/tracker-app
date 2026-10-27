@@ -13,6 +13,6 @@ import androidx.room.ForeignKey.Companion.CASCADE
     ))
 ])
 data class ActivityCheckIn(
-    val activityId: Int,
+    val activityId: Long,
     val timestamp: Long,
 )

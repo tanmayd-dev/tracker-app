@@ -38,10 +38,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import tanmay.better.tracker.ui.theme.TrackerTheme
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.temporal.TemporalAdjusters
 
 private fun todayStartEndMillis(): Pair<Long, Long> {
     val zone = ZoneId.systemDefault()
@@ -49,18 +47,6 @@ private fun todayStartEndMillis(): Pair<Long, Long> {
     val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
     val startOfNext = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
     return startOfDay to startOfNext
-}
-
-private fun currentWeekStartEndMillis(): Pair<Long, Long> {
-    val zone = ZoneId.systemDefault()
-    val today = LocalDate.now(zone)
-    val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        .atStartOfDay(zone)
-        .toInstant().toEpochMilli()
-    val startOfNext = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY))
-        .atStartOfDay(zone).toInstant()
-        .toEpochMilli()
-    return startOfWeek to startOfNext
 }
 
 class MainActivity : ComponentActivity() {
@@ -80,13 +66,13 @@ class MainActivity : ComponentActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val dao = trackerDatabase.trackerDao()
                     dao.insertActivity(
-                        TrackerActivity(1, "Read a book", 1, GoalType.AT_LEAST, Frequency.DAILY)
+                        TrackerActivity(1L, "Read a book", TaskType.BINARY, Sentiment.GOOD, 1)
                     )
                     dao.insertActivity(
-                        TrackerActivity(2, "Go to the gym", 3, GoalType.AT_LEAST, Frequency.WEEKLY)
+                        TrackerActivity(2L, "Go to the gym", TaskType.COUNTER, Sentiment.GOOD, 3)
                     )
                     dao.insertActivity(
-                        TrackerActivity(3, "Eat junk food", 2, GoalType.AT_MOST, Frequency.WEEKLY)
+                        TrackerActivity(3L, "Eat junk food", TaskType.COUNTER, Sentiment.BAD, 2)
                     )
                 }
             }
@@ -132,17 +118,8 @@ fun ActivityList(
                 activity = activity,
                 activityCheckins = activityCheckins.filter { (activityId, timestamp) ->
                     val idMatches = activityId == activity.id
-                    when (activity.frequency) {
-                        Frequency.DAILY -> {
-                            val (start, end) = todayStartEndMillis()
-                            idMatches && timestamp in start until end
-                        }
-
-                        Frequency.WEEKLY -> {
-                            val (start, end) = currentWeekStartEndMillis()
-                            idMatches && timestamp in start until end
-                        }
-                    }
+                    val (start, end) = todayStartEndMillis()
+                    idMatches && timestamp in start until end
                 },
                 onCheckIn = { onCheckIn(activity) })
         }
@@ -177,7 +154,7 @@ fun ActivityRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "${activity.frequency}",
+                "${activity.taskType}",
                 fontSize = 6.em,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -189,7 +166,7 @@ fun ActivityRow(
         ProgressIndicator(
             progress = progress,
             limit = limit,
-            goalType = activity.goalType,
+            sentiment = activity.sentiment,
             onCheckIn = onCheckIn,
             activity = activity
         )
@@ -200,12 +177,15 @@ fun ActivityRow(
 fun ProgressIndicator(
     progress: Int,
     limit: Int,
-    goalType: GoalType,
+    sentiment: Sentiment,
     onCheckIn: (TrackerActivity) -> Unit,
     activity: TrackerActivity
 ) {
-    val progressRatio = (progress.toFloat() / limit.toFloat())
-        .coerceIn(0f, 1f)
+    val progressRatio = if (limit <= 0) {
+        1f
+    } else {
+        (progress.toFloat() / limit.toFloat()).coerceIn(0f, 1f)
+    }
 
     Box(
         contentAlignment = Alignment.Center,
@@ -215,9 +195,9 @@ fun ProgressIndicator(
         CircularProgressIndicator(
             progress = { progressRatio },
             modifier = Modifier.fillMaxSize(),
-            color = when (goalType) {
-                GoalType.AT_LEAST -> MaterialTheme.colorScheme.primary
-                GoalType.AT_MOST -> MaterialTheme.colorScheme.error
+            color = when (sentiment) {
+                Sentiment.GOOD -> MaterialTheme.colorScheme.primary
+                Sentiment.BAD -> MaterialTheme.colorScheme.error
             },
             strokeWidth = 6.dp
         )

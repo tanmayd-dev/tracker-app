@@ -25,7 +25,7 @@ interface TrackerDAO {
     suspend fun insertCheckIn(checkIn: ActivityCheckIn)
 
     @Query("SELECT * FROM checkins WHERE activityId = :activityId")
-    fun getCheckInsForActivity(activityId: Int): Flow<List<ActivityCheckIn>>
+    fun getCheckInsForActivity(activityId: Long): Flow<List<ActivityCheckIn>>
 
     @Query("SELECT * FROM checkins")
     fun getAllCheckIns(): Flow<List<ActivityCheckIn>>
