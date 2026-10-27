@@ -21,6 +21,10 @@ val CrimsonAlert = Color(0xFFDC2626)
 val CrimsonDark = Color(0xFF991B1B)
 val CrimsonLight = Color(0xFFF87171)
 
+val AmberAlert = Color(0xFFF59E0B)
+val AmberDark = Color(0xFFD97706)
+val AmberLight = Color(0xFFFBBF24)
+
 object HabitColors {
     @Composable
     fun emeraldPrimary(): Color = if (isSystemInDarkTheme()) EmeraldLight else EmeraldDark
@@ -39,6 +43,36 @@ object HabitColors {
 
     @Composable
     fun onCrimsonContainer(): Color = if (isSystemInDarkTheme()) Color(0xFFFECACA) else Color(0xFF991B1B)
+
+    @Composable
+    fun amberPrimary(): Color = if (isSystemInDarkTheme()) AmberLight else AmberDark
+
+    @Composable
+    fun amberContainer(): Color = if (isSystemInDarkTheme()) Color(0xFF451A03) else Color(0xFFFEF3C7)
+
+    @Composable
+    fun onAmberContainer(): Color = if (isSystemInDarkTheme()) Color(0xFFFDE68A) else Color(0xFF92400E)
+
+    @Composable
+    fun adherenceColor(rate: Float): Color = when {
+        rate >= 0.80f -> emeraldPrimary()
+        rate >= 0.50f -> amberPrimary()
+        else -> crimsonPrimary()
+    }
+
+    @Composable
+    fun adherenceContainer(rate: Float): Color = when {
+        rate >= 0.80f -> emeraldContainer()
+        rate >= 0.50f -> amberContainer()
+        else -> crimsonContainer()
+    }
+
+    @Composable
+    fun onAdherenceContainer(rate: Float): Color = when {
+        rate >= 0.80f -> onEmeraldContainer()
+        rate >= 0.50f -> onAmberContainer()
+        else -> onCrimsonContainer()
+    }
 
     @Composable
     fun calmGreenContainer(): Color = if (isSystemInDarkTheme()) Color(0xFF064E3B) else Color(0xFFDCFCE7)
