@@ -38,16 +38,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import tanmay.better.tracker.ui.theme.TrackerTheme
-import java.time.LocalDate
-import java.time.ZoneId
 
-private fun todayStartEndMillis(): Pair<Long, Long> {
-    val zone = ZoneId.systemDefault()
-    val today = LocalDate.now(zone)
-    val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
-    val startOfNext = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    return startOfDay to startOfNext
-}
+private fun todayStartEndMillis(): Pair<Long, Long> = DateUtils.getDayStartEnd()
 
 class MainActivity : ComponentActivity() {
 
@@ -60,7 +52,8 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             TrackerDatabase::class.java,
             "tracker_database"
-        ).addCallback(object : RoomDatabase.Callback() {
+        ).fallbackToDestructiveMigration()
+        .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
                 CoroutineScope(Dispatchers.IO).launch {
