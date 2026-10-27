@@ -5,41 +5,43 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import tanmay.better.tracker.ui.components.TaskEditSheet
+import tanmay.better.tracker.ui.screens.ReportsScreen
+import tanmay.better.tracker.ui.screens.TrackerScreen
 import tanmay.better.tracker.ui.theme.TrackerTheme
 
-private fun todayStartEndMillis(): Pair<Long, Long> = DateUtils.getDayStartEnd()
+enum class NavTab {
+    TRACKER,
+    REPORTS
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -59,18 +61,20 @@ class MainActivity : ComponentActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val dao = trackerDatabase.trackerDao()
                     dao.insertActivity(
-                        TrackerActivity(1L, "Read a book", TaskType.BINARY, Sentiment.GOOD, 1)
+                        TrackerActivity(1L, "Daily Reading", TaskType.BINARY, Sentiment.GOOD, 1)
                     )
                     dao.insertActivity(
-                        TrackerActivity(2L, "Go to the gym", TaskType.COUNTER, Sentiment.GOOD, 3)
+                        TrackerActivity(2L, "Water Intake (Glasses)", TaskType.COUNTER, Sentiment.GOOD, 8)
                     )
                     dao.insertActivity(
-                        TrackerActivity(3L, "Eat junk food", TaskType.COUNTER, Sentiment.BAD, 2)
+                        TrackerActivity(3L, "No Fast Food", TaskType.BINARY, Sentiment.BAD, 0)
+                    )
+                    dao.insertActivity(
+                        TrackerActivity(4L, "Coffee Intake", TaskType.COUNTER, Sentiment.BAD, 2)
                     )
                 }
             }
         }).build()
-
 
         val dao = trackerDatabase.trackerDao()
 
@@ -81,124 +85,139 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TrackerTheme {
-                val activities by trackerViewModel.activities.collectAsState()
-                val activityCheckins by trackerViewModel.activityCheckIns.collectAsState()
-
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
-                    ActivityList(
-                        activities = activities,
-                        activityCheckins = activityCheckins,
-                        modifier = Modifier.padding(paddingValues = innerPadding),
-                        onCheckIn = { activity -> trackerViewModel.onCheckIn(activity) })
-                }
+                MainApp(viewModel = trackerViewModel)
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActivityList(
-    activities: List<TrackerActivity>,
-    activityCheckins: List<ActivityCheckIn>,
-    modifier: Modifier,
-    onCheckIn: (TrackerActivity) -> Unit
+fun MainApp(
+    viewModel: TrackerViewModel,
+    modifier: Modifier = Modifier
 ) {
-    LazyColumn(modifier = modifier) {
-        items(items = activities, key = { it.id }) { activity ->
-            ActivityRow(
-                activity = activity,
-                activityCheckins = activityCheckins.filter { (activityId, timestamp) ->
-                    val idMatches = activityId == activity.id
-                    val (start, end) = todayStartEndMillis()
-                    idMatches && timestamp in start until end
-                },
-                onCheckIn = { onCheckIn(activity) })
-        }
-    }
-}
+    var selectedTab by remember { mutableStateOf(NavTab.TRACKER) }
+    var editingActivity by remember { mutableStateOf<TrackerActivity?>(null) }
+    var isCreatingTask by remember { mutableStateOf(false) }
 
-@Composable
-fun ActivityRow(
-    activity: TrackerActivity,
-    activityCheckins: List<ActivityCheckIn>,
-    onCheckIn: (TrackerActivity) -> Unit
-) {
-    val progress = activityCheckins.size
-    val limit = activity.target
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-                .combinedClickable(
-                    onClick = {},
-                    onLongClick = {  }
+    val activities by viewModel.activities.collectAsState()
+    val activityCheckIns by viewModel.activityCheckIns.collectAsState()
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = when (selectedTab) {
+                            NavTab.TRACKER -> "Habit Tracker"
+                            NavTab.REPORTS -> "Reports & Analytics"
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedTab == NavTab.TRACKER,
+                    onClick = { selectedTab = NavTab.TRACKER },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Tracker"
+                        )
+                    },
+                    label = { Text("Tracker") }
                 )
-        ) {
-            Text(
-                activity.name,
-                fontSize = 10.em,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "${activity.taskType}",
-                fontSize = 6.em,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+                NavigationBarItem(
+                    selected = selectedTab == NavTab.REPORTS,
+                    onClick = { selectedTab = NavTab.REPORTS },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Reports"
+                        )
+                    },
+                    label = { Text("Reports") }
+                )
+            }
+        },
+        floatingActionButton = {
+            if (selectedTab == NavTab.TRACKER) {
+                FloatingActionButton(
+                    onClick = {
+                        editingActivity = null
+                        isCreatingTask = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Task"
+                    )
+                }
+            }
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        ProgressIndicator(
-            progress = progress,
-            limit = limit,
-            sentiment = activity.sentiment,
-            onCheckIn = onCheckIn,
-            activity = activity
-        )
+    ) { innerPadding ->
+        when (selectedTab) {
+            NavTab.TRACKER -> {
+                TrackerScreen(
+                    activities = activities,
+                    activityCheckIns = activityCheckIns,
+                    onIncrement = { activity -> viewModel.onIncrement(activity) },
+                    onDecrement = { activity -> viewModel.onDecrement(activity) },
+                    onToggleBinary = { activity -> viewModel.onToggleBinary(activity) },
+                    onEditTask = { activity ->
+                        isCreatingTask = false
+                        editingActivity = activity
+                    },
+                    onDeleteTask = { activity -> viewModel.deleteActivity(activity) },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+            NavTab.REPORTS -> {
+                ReportsScreen(
+                    activities = activities,
+                    checkIns = activityCheckIns,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+        }
     }
-}
 
-@Composable
-fun ProgressIndicator(
-    progress: Int,
-    limit: Int,
-    sentiment: Sentiment,
-    onCheckIn: (TrackerActivity) -> Unit,
-    activity: TrackerActivity
-) {
-    val progressRatio = if (limit <= 0) {
-        1f
-    } else {
-        (progress.toFloat() / limit.toFloat()).coerceIn(0f, 1f)
-    }
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(128.dp)
-            .clickable(onClick = { onCheckIn(activity) })
-    ) {
-        CircularProgressIndicator(
-            progress = { progressRatio },
-            modifier = Modifier.fillMaxSize(),
-            color = when (sentiment) {
-                Sentiment.GOOD -> MaterialTheme.colorScheme.primary
-                Sentiment.BAD -> MaterialTheme.colorScheme.error
+    if (isCreatingTask || editingActivity != null) {
+        TaskEditSheet(
+            activityToEdit = editingActivity,
+            onDismiss = {
+                editingActivity = null
+                isCreatingTask = false
             },
-            strokeWidth = 6.dp
-        )
-        Text(
-            "$progress/$limit",
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontSize = 32.sp,
+            onSave = { name, type, sentiment, target ->
+                val current = editingActivity
+                if (current != null) {
+                    viewModel.updateActivity(
+                        current.copy(
+                            name = name,
+                            taskType = type,
+                            sentiment = sentiment,
+                            target = target
+                        )
+                    )
+                } else {
+                    viewModel.addActivity(name, type, sentiment, target)
+                }
+                editingActivity = null
+                isCreatingTask = false
+            },
+            onDelete = if (editingActivity != null) {
+                { activity ->
+                    viewModel.deleteActivity(activity)
+                    editingActivity = null
+                    isCreatingTask = false
+                }
+            } else null
         )
     }
 }
