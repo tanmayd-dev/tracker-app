@@ -197,6 +197,16 @@ fun TaskReportItem(
                 }
             }
 
+            // Daily Activity Bar Chart
+            if (report.dailyHistory.size > 1) {
+                TaskActivityBarChart(
+                    dailyHistory = report.dailyHistory,
+                    taskType = report.activity.taskType,
+                    sentiment = report.activity.sentiment,
+                    target = report.activity.target
+                )
+            }
+
             // Progress Bar showing adherence rate
             LinearProgressIndicator(
                 progress = { report.adherenceRate },

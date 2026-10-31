@@ -407,4 +407,56 @@ class ReportEngineTest {
         assertEquals(7, taskReport.totalDays)
         assertEquals(2f / 7f, taskReport.adherenceRate, 0.0001f)
     }
+
+    @Test
+    fun generateReport_dailyTrend_calculatesPerDayAdherenceCorrectly() {
+        val goodActivity = TrackerActivity(
+            id = 1L,
+            name = "Exercise",
+            taskType = TaskType.BINARY,
+            sentiment = Sentiment.GOOD,
+            target = 1
+        )
+        val badActivity = TrackerActivity(
+            id = 2L,
+            name = "Smoking",
+            taskType = TaskType.BINARY,
+            sentiment = Sentiment.BAD,
+            target = 0
+        )
+
+        // Today (Day 0): good passed (1 check), bad passed (0 checks) -> 2/2 = 1.0f
+        // Day -1: good failed (0 checks), bad passed (0 checks) -> 1/2 = 0.5f
+        // Day -2: good failed (0 checks), bad failed (1 check) -> 0/2 = 0.0f
+        val checkIns = listOf(
+            checkInAt(1L, referenceDate, hour = 10),
+            checkInAt(2L, referenceDate.minusDays(2), hour = 14)
+        )
+
+        val report = ReportEngine.generateReport(
+            activities = listOf(goodActivity, badActivity),
+            checkIns = checkIns,
+            period = ReportPeriod.LAST_7_DAYS,
+            referenceDate = referenceDate,
+            zoneId = testZone
+        )
+
+        assertEquals(7, report.dailyTrend.size)
+        val trendByDate = report.dailyTrend.associateBy { it.date }
+
+        val day0 = trendByDate[referenceDate]!!
+        assertEquals(2, day0.passedCount)
+        assertEquals(2, day0.totalCount)
+        assertEquals(1.0f, day0.adherenceRate, 0.0001f)
+
+        val dayMinus1 = trendByDate[referenceDate.minusDays(1)]!!
+        assertEquals(1, dayMinus1.passedCount)
+        assertEquals(2, dayMinus1.totalCount)
+        assertEquals(0.5f, dayMinus1.adherenceRate, 0.0001f)
+
+        val dayMinus2 = trendByDate[referenceDate.minusDays(2)]!!
+        assertEquals(0, dayMinus2.passedCount)
+        assertEquals(2, dayMinus2.totalCount)
+        assertEquals(0.0f, dayMinus2.adherenceRate, 0.0001f)
+    }
 }

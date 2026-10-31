@@ -38,6 +38,7 @@ import tanmay.better.tracker.ReportPeriod
 import tanmay.better.tracker.Sentiment
 import tanmay.better.tracker.TaskType
 import tanmay.better.tracker.TrackerActivity
+import tanmay.better.tracker.ui.components.OverallTrendChart
 import tanmay.better.tracker.ui.components.ReportSummaryCards
 import tanmay.better.tracker.ui.components.TaskReportItem
 import tanmay.better.tracker.ui.theme.TrackerTheme
@@ -125,6 +126,16 @@ fun ReportsScreen(
             // Summary Cards (Hero Card + Secondary Cards)
             item {
                 ReportSummaryCards(report = report)
+            }
+
+            // Overall Trend Line Chart (for 7-day and 30-day views)
+            if (report.period != ReportPeriod.TODAY && report.taskReports.isNotEmpty()) {
+                item {
+                    OverallTrendChart(
+                        dailyTrend = report.dailyTrend,
+                        period = report.period
+                    )
+                }
             }
 
             // Section Header: Task Breakdown

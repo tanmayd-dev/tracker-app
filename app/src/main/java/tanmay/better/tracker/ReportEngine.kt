@@ -16,6 +16,13 @@ data class TaskDayStatus(
     val passed: Boolean
 )
 
+data class DayAdherence(
+    val date: LocalDate,
+    val adherenceRate: Float,
+    val passedCount: Int,
+    val totalCount: Int
+)
+
 data class TaskReport(
     val activity: TrackerActivity,
     val passedDays: Int,
@@ -31,7 +38,8 @@ data class ConsolidatedReport(
     val goodHabitsTotalDays: Int,
     val badHabitsCleanDays: Int,
     val badHabitsTotalDays: Int,
-    val taskReports: List<TaskReport>
+    val taskReports: List<TaskReport>,
+    val dailyTrend: List<DayAdherence> = emptyList()
 )
 
 object ReportEngine {
@@ -89,6 +97,18 @@ object ReportEngine {
         val totalDays = goodHabitsTotalDays + badHabitsTotalDays
         val overallAdherenceRate = if (totalDays > 0) totalPassed.toFloat() / totalDays.toFloat() else 0f
 
+        val dailyTrend = dates.mapIndexed { index, date ->
+            val passedCount = taskReports.count { it.dailyHistory[index].passed }
+            val totalCount = taskReports.size
+            val adherenceRate = if (totalCount > 0) passedCount.toFloat() / totalCount.toFloat() else 0f
+            DayAdherence(
+                date = date,
+                adherenceRate = adherenceRate,
+                passedCount = passedCount,
+                totalCount = totalCount
+            )
+        }
+
         return ConsolidatedReport(
             period = period,
             overallAdherenceRate = overallAdherenceRate,
@@ -96,7 +116,8 @@ object ReportEngine {
             goodHabitsTotalDays = goodHabitsTotalDays,
             badHabitsCleanDays = badHabitsCleanDays,
             badHabitsTotalDays = badHabitsTotalDays,
-            taskReports = taskReports
+            taskReports = taskReports,
+            dailyTrend = dailyTrend
         )
     }
 }
